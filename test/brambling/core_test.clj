@@ -2,7 +2,8 @@
   (:require [clojure.test :refer :all]
             [clojure.pprint :refer [pprint]]
             [datomic.api :as d]
-            [brambling.moves.ya.bits.db :refer [gen-schema get-db get-db-conn results->entities]]
+            [brambling.moves.ya.bits.db :refer [gen-schema get-db
+                                                get-db-conn results->entities]]
             [brambling.moves.ya.bits.migrate :refer :all]))
 
 (defn reset-db
@@ -24,12 +25,6 @@
 (def base-schema
   [[:message/uuid :db.type/uuid :db.cardinality/one :db/unique :db.unique/identity]
    [:message/timestamp :db.type/instant]])
-
-(defn action-string->long [x]
-  ({"insert"   0
-    "update"   1
-    "retrieve" 2
-    "delete"   3} x))
 
 (def origin-schema (conj base-schema [:message/action :db.type/string]))
 (def target-schema (conj base-schema [:message/action :db.type/long]))
@@ -63,6 +58,12 @@
 
 (defn get-messages []
   (d/q '[:find ?e :where [?e :message/uuid]] (get-db origin)))
+
+(defn action-string->long [x]
+  ({"insert"   0
+    "update"   1
+    "retrieve" 2
+    "delete"   3} x))
 
 (defn action-to-number [v]
   (let [[action id attr val] v]

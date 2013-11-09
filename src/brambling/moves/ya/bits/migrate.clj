@@ -121,19 +121,20 @@
 
 (defn transactions-with-schema [origin dest mappers new-schema]
   (let [[mapping result] (translate-transactions origin dest mappers)
-        first-time (v->val (first (tx-time (first result))))
-        timed-schema (conj new-schema [:db/add (d/tempid :db.part/tx) :db/txInstant first-time])]
+        first-time       (v->val (first (tx-time (first result))))
+        timed-schema     (conj new-schema [:db/add (d/tempid :db.part/tx) :db/txInstant first-time])]
     [mapping (concat [timed-schema] (map drop-schema result))]))
 
 (defn transact->target [target-conn txes]
   (reduce (fn [mapping tx]
-            (let [temps-in-tx (into {} (map vector (map tx-item->id tx) (repeat nil)))
-                  new-mapping (merge temps-in-tx mapping)
+            (let [temps-in-tx   (into {} (map vector (map tx-item->id tx) (repeat nil)))
+                  new-mapping   (merge temps-in-tx mapping)
                   unbound-temps (map first (filter #(nil? (second %)) new-mapping))
-                  tx-with-extant-ids (map (fn [tx-item]
-                                            (let [id (tx-item->id tx-item)
-                                                  new-id (or (new-mapping id) id)]
-                                              (tx-item-replace-id tx-item new-id)))
+                  tx-with-extant-ids (map
+                                      (fn [tx-item]
+                                        (let [id (tx-item->id tx-item)
+                                              new-id (or (new-mapping id) id)]
+                                          (tx-item-replace-id tx-item new-id)))
                                       tx)
                   {:keys [db-after tempids]} @(d/transact target-conn tx-with-extant-ids)]
               (reduce (fn [m u]
