@@ -49,7 +49,7 @@
 
 (defn temp-or-extant [n]
   (let [klass (class n)]
-    (if (and (= klass java.lang.Long) (> n 0))
+    (if (and (= klass java.lang.Long) (pos? n))
       :extant
       (when n
         :tempid))))
@@ -117,7 +117,7 @@
    (map? m-or-v) (= (:part (:db/id m-or-v)) :db.part/db)))
 
 (defn drop-schema [tx]
-  (filter (complement is-schema) tx))
+  (remove is-schema tx))
 
 (defn transactions-with-schema [origin dest mappers new-schema]
   (let [[mapping result] (translate-transactions origin dest mappers)
