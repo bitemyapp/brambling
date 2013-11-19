@@ -130,8 +130,8 @@
    (vector? m-or-v) (= (:part (v->id m-or-v)) :db.part/db)
    (map? m-or-v) (= (:part (:db/id m-or-v)) :db.part/db)))
 
-(defn drop-schema [tx]
-  (remove is-schema tx))
+(defn drop-schema [[mapping tx]]
+  [mapping (remove is-schema tx)])
 
 (defn transactions-with-schema [origin dest mappers new-schema]
   (let [translated   (translate-transactions origin mappers)
