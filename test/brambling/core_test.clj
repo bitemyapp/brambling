@@ -85,8 +85,9 @@
     (let [existing-message (get-messages)]
       (is (= 1 (count existing-message)))))
   (testing "Can transfer data from origin to destination"
-    (let [[_ transactee] (transactions-with-schema origin target [migrate-action-to-number] (target-s))
-          _              (transact->target (t-conn) transactee)
+    (let [;; [_ transactee] (transactions-with-schema origin target [migrate-action-to-number] (target-s))
+          ;; _              (transact->target (t-conn) transactee)
+          _ (migrate->target origin target (target-s) :mappers [migrate-action-to-number])
           messages       (map (partial into {})
                               (results->entities (t-db)
                                 (d/q '[:find ?e :where [?e :message/uuid]] (t-db))))]

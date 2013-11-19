@@ -1,4 +1,4 @@
-(defproject brambling "0.0.1"
+(defproject brambling "0.0.2"
   :description "Datomic migration toolkit"
   :url "http://github.com/bitemyapp/brambling/"
   :license {:name "Eclipse Public License"

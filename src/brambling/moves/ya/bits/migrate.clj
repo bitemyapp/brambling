@@ -54,7 +54,18 @@
       (when n
         :tempid))))
 
-(defn groupings->temp-ids [db mapping groupings]
+(defn groupings->temp-ids
+  "Can't directly transact primary keys from one database into another.
+  Have to use a temporary id intermediary. Groupings is the datoms
+  in a given transaction grouped by entity id (primary key). If the
+  primary key hasn't been seen before, a temp-id is generated and the
+  mapping is updated.
+
+  [:db/add 1 :attr :muh-data] =>
+  [:db/add #db/id[:db.part/user -10000199] :attr :muh-data] && {1 #db/id[:db.part/user -10000199]}
+
+  Using the above mapping, we can translate all future datoms related to entity 1"
+  [db mapping groupings]
   (reduce (fn [[mapping results] [id data]]
             (let [id?     (mapping id)
                   id-type (temp-or-extant id?)
@@ -71,23 +82,26 @@
 
 (defn translate-transactions
   "Origin and dest should be URIs, mappers should be [fn]"
-  [origin dest mappers]
-  (let [start           (beginning-of-time)
-        end             (da-future)
-        [o-conn o-db]   (conn-and-db origin)
-        [d-conn d-db]   (conn-and-db dest)
-        schema          (db->schema-map o-db)
-        muh-log         (tx-log o-conn start end)
-        mapping {}]
-    (reduce
-     (fn [[id-map results] log-item]
+  ([origin mappers]
+     (let [start           (beginning-of-time)
+           end             (da-future)]
+       (translate-transactions origin mappers start end)))
+
+  ([origin mappers start end]
+     (let [[conn db]   (conn-and-db origin)
+           muh-log         (tx-log conn start end)
+           schema          (db->schema-map db)]
+       (translate-transactions conn db mappers schema muh-log {})))
+
+  ([conn db mappers schema muh-log id-map]
+     (if-let [log-item   (first muh-log)]
        (let [translated (log->tx schema log-item)
              grouped    (group-by second translated)
-             [new-mapping new-results]
-             (groupings->temp-ids o-db id-map grouped)
+             [new-mapping new-results] (groupings->temp-ids db id-map grouped)
              mapped-results (reduce (fn [c v] (v c)) new-results mappers)]
-         [new-mapping (conj results mapped-results)]))
-                    [mapping []] muh-log)))
+         (cons [new-mapping mapped-results]
+               (lazy-seq (translate-transactions conn db mappers schema (next muh-log) new-mapping))))
+       nil)))
 
 (defn v->val [v]
   (nth v 3))
@@ -99,7 +113,7 @@
   (nth v 1))
 
 (defn tx-time [tx]
-  (filter #(= (v->attr %) :db/txInstant) tx))
+  (filter #(= (v->attr %) :db/txInstant) (filter vector? tx)))
 
 (defn tx-item->id [i]
   (cond
@@ -120,10 +134,11 @@
   (remove is-schema tx))
 
 (defn transactions-with-schema [origin dest mappers new-schema]
-  (let [[mapping result] (translate-transactions origin dest mappers)
-        first-time       (v->val (first (tx-time (first result))))
-        timed-schema     (conj new-schema [:db/add (d/tempid :db.part/tx) :db/txInstant first-time])]
-    [mapping (concat [timed-schema] (map drop-schema result))]))
+  (let [translated   (translate-transactions origin mappers)
+        [_ first-tx] (first translated)
+        first-time   (v->val (first (tx-time first-tx)))
+        timed-schema (conj new-schema [:db/add (d/tempid :db.part/tx) :db/txInstant first-time])]
+    (concat [[{} timed-schema]] (map drop-schema translated))))
 
 (defn transact->target [target-conn txes]
   (reduce (fn [mapping tx]
@@ -141,3 +156,13 @@
                         (assoc m u (d/resolve-tempid db-after tempids u)))
                       new-mapping unbound-temps)))
             {} txes))
+
+(defn migrate->target
+  "origin dburi, target dburi, vector of mapper fns,
+  vector of transactable new schema entities"
+  [origin target new-schema & {:keys [mappers]
+                               :or   {mappers []}}]
+  (let [t-conn (d/connect target)
+        txes-and-mappings (transactions-with-schema origin target mappers new-schema)
+        txes (map second txes-and-mappings)]
+    (transact->target t-conn txes)))
