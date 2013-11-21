@@ -66,9 +66,13 @@ Given a simple use-case like wanting to turn strings into an integral mapping:
 
 Per transaction mapping functions that can choose to translate or drop datoms.
 
+Lazy sequence of origin translated transactions so that the whole history isn't retained in memory. This should suffice as an incremental/streaming migration implementation.
+
 ## Not Supported, possibly coming later
 
-Lazy/streaming migrations
+Reader/writer ring-buffer/core.async backed parallelization
+
+Differential migrations
 
 Folding migrations (not just map, would allow collapsing transactions)
 
