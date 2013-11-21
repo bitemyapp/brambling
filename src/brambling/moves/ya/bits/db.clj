@@ -48,3 +48,8 @@
 
 (defn db->schema-map [db]
   (into {} (map #((juxt :db/id identity) %) (db->schema db))))
+
+(defn inject-id
+  "Given an entity and a database partition, injects a tempid"
+  [part entity]
+  (assoc entity :db/id (d/tempid part)))

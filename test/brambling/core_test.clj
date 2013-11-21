@@ -1,9 +1,12 @@
 (ns brambling.core-test
   (:require [clojure.test :refer :all]
             [clojure.pprint :refer [pprint]]
+            [clj-time.core :as time]
+            [clj-time.coerce :as tc]
             [datomic.api :as d]
             [brambling.moves.ya.bits.db :refer [gen-schema get-db
-                                                get-db-conn results->entities]]
+                                                get-db-conn inject-id
+                                                results->entities]]
             [brambling.moves.ya.bits.migrate :refer :all]))
 
 (defn reset-db
@@ -92,3 +95,43 @@
                               (results->entities (t-db)
                                 (d/q '[:find ?e :where [?e :message/uuid]] (t-db))))]
       (is (= expected-messages messages)))))
+
+(defn gen-action []
+  (let [actions ["insert" "update" "retrieve" "delete"]]
+    (nth actions (rand-int 4))))
+
+(defn gen-timestamp []
+  (-> (time/now)
+      (tc/to-long)
+      (rand)
+      (long)
+      (tc/from-long)
+      (.toDate)))
+
+(defn gen-uuid []
+  (java.util.UUID/randomUUID))
+
+(defn gen-message []
+  {:message/uuid      (gen-uuid)
+   :message/timestamp (gen-timestamp)
+   :message/action    (gen-action)})
+
+(def message-stream (repeatedly gen-message))
+
+(defn transact-message [conn n]
+  (when (= (mod n 100) 0)
+    (println n))
+  (let [messages    (take 1000 message-stream)
+        injected    (map (partial inject-id :db.part/user) messages)]
+    (d/transact-async conn injected)))
+
+(defn load-into [conn]
+  (doall (map deref (pmap #(future ((partial transact-message conn) %)) (range 1e4)))))
+
+(deftest ^:incremental migrating-large-datasets
+  (prepare-db)
+  (testing "Can migrate a large dataset"
+    (let [_       (load-into (o-conn))
+          _       (time (migrate->target origin target (target-s) :mappers [migrate-action-to-number]))
+          actions (d/q '[:find ?a :where [?e :message/action ?a]] (t-db))]
+      (is (= (set (mapcat concat actions)) #{0 1 2 3})))))

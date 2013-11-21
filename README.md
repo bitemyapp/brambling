@@ -2,6 +2,10 @@
 
 A (Clojure) toolkit for managing Datomic migrations
 
+## Leiningen
+
+!["Leiningen version"](https://clojars.org/brambling/latest-version.svg)
+
 ## Usage
 
 Given a simple use-case like wanting to turn strings into an integral mapping:
