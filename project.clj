@@ -6,5 +6,6 @@
   :repl-options {:port 5445}
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [clj-time "0.6.0"]
-                 ;; Install Datomic Pro starter edition or exclude if needs be.
-                 [com.datomic/datomic-pro "0.8.4254"]])
+                 ;; Install Datomic Pro or exclude and replace with datomic-free if needs be.
+                 [com.datomic/datomic-pro "0.8.4254"]]
+  :test-selectors {:default (complement :incremental)})

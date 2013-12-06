@@ -23,7 +23,8 @@
   (d/tx-range (d/log db-conn) start end))
 
 (defn data->tx
-  "#Datum{:e 13194139537299 :a 50 :v #inst \"2013-10-11T17:36:38.900-00:00\" :tx 13194139537299 :added true}
+  "#Datum{:e 13194139537299 :a 50
+   :v #inst \"2013-10-11T17:36:38.900-00:00\" :tx 13194139537299 :added true}
    => [:db/add 13194139537299 :db/txInstant #inst \"2013-10-11T17:36:38.900-00:00\"]"
   [schema datum]
   (let [verb         ({true :db/add false :db/retract} (:added datum))
@@ -62,9 +63,11 @@
   mapping is updated.
 
   [:db/add 1 :attr :muh-data] =>
-  [:db/add #db/id[:db.part/user -10000199] :attr :muh-data] && {1 #db/id[:db.part/user -10000199]}
+  [:db/add #db/id[:db.part/user -10000199] :attr :muh-data] &&
+  {1 #db/id[:db.part/user -10000199]}
 
-  Using the above mapping, we can translate all future datoms related to entity 1"
+  Using the above mapping, we can translate all future datoms
+  related to entity 1"
   [db mapping groupings]
   (reduce (fn [[mapping results] [id data]]
             (let [id?     (mapping id)
@@ -100,7 +103,9 @@
              [new-mapping new-results] (groupings->temp-ids db id-map grouped)
              mapped-results (reduce (fn [c v] (v c)) new-results mappers)]
          (cons [new-mapping mapped-results]
-               (lazy-seq (translate-transactions conn db mappers schema (next muh-log) new-mapping))))
+               (lazy-seq (translate-transactions
+                          conn db mappers schema
+                          (next muh-log) new-mapping))))
        nil)))
 
 (defn v->val [v]
