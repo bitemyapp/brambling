@@ -1,5 +1,7 @@
 # brambling
 
+!["Brambling (bird)"](brambling.jpg)
+
 A (Clojure) toolkit for managing Datomic migrations
 
 ## Leiningen
